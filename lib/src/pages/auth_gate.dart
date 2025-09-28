@@ -2,11 +2,37 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'admin_questions_page.dart';
 
-class AuthGate extends StatelessWidget {
+/// AuthGate that forces a fresh login every time the admin page is opened.
+/// It signs out any existing Firebase session on creation and then shows the
+/// login UI. This ensures admins must re-enter credentials each time.
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _signingOut = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure any existing auth session is cleared when opening the admin UI.
+    // We don't await here synchronously; update state when complete.
+    FirebaseAuth.instance.signOut().whenComplete(() {
+      if (mounted) setState(() => _signingOut = false);
+    }).catchError((_) {
+      if (mounted) setState(() => _signingOut = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_signingOut) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {

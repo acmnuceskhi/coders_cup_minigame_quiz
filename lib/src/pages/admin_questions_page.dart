@@ -76,12 +76,12 @@ class _AdminQuestionsPageState extends State<AdminQuestionsPage> {
             const SizedBox(height: 8),
             const Text(
               'CSV format: question, option1, option2, option3, option4, correctIndex (0-based).',
-              style: TextStyle(fontSize: 13, color: Colors.black87),
+              style: TextStyle(fontSize: 13,),
             ),
             const SizedBox(height: 6),
             const Text(
               'Example: "What is 2+2?", "1", "2", "3", "4", 3',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12,),
             ),
             const SizedBox(height: 8),
             ElevatedButton(onPressed: _clearAll, child: const Text('Clear all questions')),

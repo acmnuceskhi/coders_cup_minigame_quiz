@@ -17,7 +17,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Coders Cup Quiz',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
+      theme: ThemeData(
+        colorScheme: ColorScheme.dark(primary: Colors.red[700]!),
+        useMaterial3: true,
+      ),
       routes: {
         '/': (_) => const UserHome(),
         '/admin': (_) => const AuthGate(),

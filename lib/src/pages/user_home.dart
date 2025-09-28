@@ -61,9 +61,11 @@ class _UserHomeState extends State<UserHome> {
         }
       }
       if (gameId == null) {
-          if (mounted) ScaffoldMessenger.of(
+          if (mounted) {
+            ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Invalid code')));
+          }
         return;
       }
       // Load 20 random questions
@@ -74,9 +76,11 @@ class _UserHomeState extends State<UserHome> {
           .get();
       final all = qSnap.docs;
       if (all.isEmpty) {
-          if (mounted) ScaffoldMessenger.of(
+          if (mounted) {
+            ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('No questions available')));
+          }
         return;
       }
       final rand = Random();
@@ -117,6 +121,7 @@ class _UserHomeState extends State<UserHome> {
         IconButton(
           icon: const Icon(Icons.person),
           onPressed: () async {
+            _codeCtrl.text = '';
             Navigator.of(context).pushNamed('/admin');
           },
         ),
