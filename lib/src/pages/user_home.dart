@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_tex/flutter_tex.dart';
 import 'quiz_page.dart';
 
 class UserHome extends StatefulWidget {
@@ -50,7 +49,7 @@ class _UserHomeState extends State<UserHome> {
       // Find a game marked as Quiz that contains this code in responses
       final games = await FirebaseFirestore.instance
           .collection('games')
-          .where('name', isEqualTo: 'Quiz')
+          .where('name', isEqualTo: 'Tech Trivia')
           .get();
       String? gameId;
       String? responseId;
@@ -96,7 +95,7 @@ class _UserHomeState extends State<UserHome> {
         }
         return;
       }
-      // Load 20 random questions
+      // Load 10 random questions
       final qSnap = await FirebaseFirestore.instance
           .collection('quiz')
           .doc('meta')
@@ -114,7 +113,7 @@ class _UserHomeState extends State<UserHome> {
       final rand = Random();
       final chosen = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
       final indices = <int>{};
-      while (indices.length < 20 && indices.length < all.length) {
+      while (indices.length < 10 && indices.length < all.length) {
         indices.add(rand.nextInt(all.length));
       }
       for (final i in indices) {
