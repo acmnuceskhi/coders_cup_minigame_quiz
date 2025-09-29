@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_tex/flutter_tex.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 class QuizPage extends StatefulWidget {
   final String gameId;
@@ -109,7 +112,6 @@ class _QuizPageState extends State<QuizPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Question ${_index + 1}/${widget.questions.length}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -167,12 +169,32 @@ class _QuizPageState extends State<QuizPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  q['question'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w600,
+                  'Question ${_index + 1}/${widget.questions.length}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: MediaQuery.of(context).size.height * 0.05,
                   ),
                   textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.4,
+                    color: Colors.black,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SingleChildScrollView(
+                        child: GptMarkdown(
+                          q['question'] ?? '',
+                          style: TextStyle(
+                            color: const Color.fromARGB(255, 21, 183, 27),
+                            fontSize: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 60),
                 ...List.generate(
@@ -196,7 +218,7 @@ class _QuizPageState extends State<QuizPage>
                           ).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
-                        child: Text(options[i]),
+                        child: _renderPossibleMath(options[i], 20),
                       ),
                     ),
                   ),
@@ -209,6 +231,34 @@ class _QuizPageState extends State<QuizPage>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _renderPossibleMath(String text, double fontSize) {
+    final trimmed = text.trim();
+    // simple heuristic: contains $...$ or \(...\) or \\[...\\]
+    final hasMath =
+        trimmed.contains(r'\(') ||
+        trimmed.contains(r'\[') ||
+        (trimmed.contains(r'$') && trimmed.split(r'$').length > 2);
+    if (!hasMath) {
+      return Text(
+        text,
+        style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    // Remove surrounding single $ markers for Math.tex
+    var latex = text;
+    if (latex.startsWith(r'$') && latex.endsWith(r'$')) {
+      latex = latex.substring(1, latex.length - 1);
+    }
+
+    return Math.tex(
+      latex,
+      textStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+      mathStyle: MathStyle.text,
     );
   }
 }

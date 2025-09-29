@@ -39,6 +39,9 @@ dependencies:
   firebase_auth: ^6.0.2
   file_picker: ^5.3.0
   csv: ^6.0.0
+  flutter_math_fork: ^0.7.0
+  flutter_tex: ^5.1.10
+  gpt_markdown: ^1.1.2
 
 dev_dependencies:
   flutter_test:
