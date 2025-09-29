@@ -6,17 +6,25 @@ class QuizPage extends StatefulWidget {
   final String responseId;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> questions;
 
-  const QuizPage({super.key, required this.gameId, required this.responseId, required this.questions});
+  const QuizPage({
+    super.key,
+    required this.gameId,
+    required this.responseId,
+    required this.questions,
+  });
 
   @override
   State<QuizPage> createState() => _QuizPageState();
 }
 
-class _QuizPageState extends State<QuizPage> {
+class _QuizPageState extends State<QuizPage>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   int _score = 0;
   final List<int> _answers = [];
   bool _submitting = false;
+  late final AnimationController _bgController;
+  late final Animation<double> _bgScale;
 
   void _select(int choice) {
     setState(() {
@@ -28,10 +36,28 @@ class _QuizPageState extends State<QuizPage> {
     if (_index >= widget.questions.length) _submitScore();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _bgController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    );
+    _bgScale = Tween<double>(
+      begin: 1.0,
+      end: 1.06,
+    ).animate(CurvedAnimation(parent: _bgController, curve: Curves.easeInOut));
+    _bgController.repeat(reverse: true);
+  }
+
   Future<void> _submitScore() async {
     setState(() => _submitting = true);
     try {
-      final ref = FirebaseFirestore.instance.collection('games').doc(widget.gameId).collection('responses').doc(widget.responseId);
+      final ref = FirebaseFirestore.instance
+          .collection('games')
+          .doc(widget.gameId)
+          .collection('responses')
+          .doc(widget.responseId);
       await ref.update({'score': _score});
       if (!mounted) return;
       await showDialog<void>(
@@ -40,18 +66,30 @@ class _QuizPageState extends State<QuizPage> {
           title: const Text('Done'),
           content: Text('Your score: $_score'),
           actions: [
-            TextButton(onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            }, child: const Text('OK')),
+            TextButton(
+              onPressed: () {
+                if (mounted) Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
           ],
         ),
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit score: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to submit score: $e')));
     } finally {
       setState(() => _submitting = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _bgController.dispose();
+    super.dispose();
   }
 
   @override
@@ -64,43 +102,113 @@ class _QuizPageState extends State<QuizPage> {
     if (_index >= widget.questions.length) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance.collection('games').doc(widget.gameId).collection('responses').doc(widget.responseId).get(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        final doc = snap.data;
-        if (doc != null && doc.data() != null && doc.data()!.containsKey('score') && doc.data()!['score'] != null) {
-          // already scored
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog<void>(context: context, builder: (_) => AlertDialog(title: const Text('Already played'), content: Text('You have already played this quiz. Your score: ${doc.data()!['score']}'), actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))]));
-            Navigator.of(context).pop();
-          });
-          return const Scaffold();
-        }
 
-        // proceed to render the quiz UI
-        final q = widget.questions[_index].data();
-        final options = List<String>.from(q['options'] ?? []);
-        return Scaffold(
-          appBar: AppBar(title: Text('Question ${_index + 1}/${widget.questions.length}')),
-          body: Padding(
-            padding: const EdgeInsets.all(12.0),
+    // proceed to render the quiz UI with a dimmed background image
+    final q = widget.questions[_index].data();
+    final options = List<String>.from(q['options'] ?? []);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Question ${_index + 1}/${widget.questions.length}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('Quit quiz'),
+                  content: const Text(
+                    'Are you sure you want to quist? Your progress will be lost.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ),
+      body: Stack(
+        children: [
+          // background image (network) with a subtle dark overlay to dim it
+          Positioned.fill(
+            child: ScaleTransition(
+              scale: _bgScale,
+              child: Image.asset(
+                'assets/tech-trivia-bg.png',
+                fit: BoxFit.cover,
+                color: Colors.black.withOpacity(0.7),
+                colorBlendMode: BlendMode.darken,
+              ),
+            ),
+          ),
+          // quiz content
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width * 0.2,
+              vertical: 30,
+            ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(q['question'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                ...List.generate(options.length, (i) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6.0),
-                  child: ElevatedButton(onPressed: () => _select(i), child: Text(options[i])),
-                )),
-                const Spacer(),
-                if (_submitting) const Center(child: CircularProgressIndicator()),
+                Text(
+                  q['question'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 60),
+                ...List.generate(
+                  options.length,
+                  (i) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6.0),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: MediaQuery.of(context).size.width * 0.1,
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => _select(i),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 20,
+                          ),
+                          textStyle: const TextStyle(fontSize: 24),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(options[i]),
+                      ),
+                    ),
+                  ),
+                ),
+                // const Spacer(),
+                if (_submitting)
+                  const Center(child: CircularProgressIndicator()),
               ],
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

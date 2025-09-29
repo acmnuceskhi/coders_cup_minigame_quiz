@@ -14,11 +14,31 @@ class UserHome extends StatefulWidget {
 class _UserHomeState extends State<UserHome> {
   final _codeCtrl = TextEditingController();
   bool _checking = false;
+  // Animated blue gradients
+  final List<List<Color>> _blueGradients = [
+    [Color(0xFF0D47A1), Color(0xFF1976D2)], // deep -> mid
+    [Color(0xFF1565C0), Color(0xFF64B5F6)], // mid -> light
+    [Color(0xFF0B3D91), Color(0xFF42A5F5)], // darker -> light
+    [Color(0xFF1E3A8A), Color(0xFF60A5FA)],
+  ];
+  int _currentGradient = 0;
 
   @override
   void dispose() {
     _codeCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Kick off the first gradient transition on next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _currentGradient = (_currentGradient + 1) % _blueGradients.length;
+      });
+    });
   }
 
   Future<void> _submit() async {
@@ -38,16 +58,23 @@ class _UserHomeState extends State<UserHome> {
         if (r.exists) {
           // If a score already exists, user already played.
           final data = r.data();
-          if (data != null && data.containsKey('score') && data['score'] != null) {
+          if (data != null &&
+              data.containsKey('score') &&
+              data['score'] != null) {
             if (mounted) {
               setState(() => _checking = false);
               await showDialog<void>(
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Already played'),
-                  content: Text('You have already played this quiz. Your score: ${data['score']}'),
+                  content: Text(
+                    'You have already played this quiz. Your score: ${data['score']}',
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK'),
+                    ),
                   ],
                 ),
               );
@@ -61,11 +88,11 @@ class _UserHomeState extends State<UserHome> {
         }
       }
       if (gameId == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(
+        if (mounted) {
+          ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Invalid code')));
-          }
+        }
         return;
       }
       // Load 20 random questions
@@ -76,11 +103,11 @@ class _UserHomeState extends State<UserHome> {
           .get();
       final all = qSnap.docs;
       if (all.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('No questions available')));
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No questions available')),
+          );
+        }
         return;
       }
       final rand = Random();
@@ -115,38 +142,103 @@ class _UserHomeState extends State<UserHome> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Quiz'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.person),
-          onPressed: () async {
-            _codeCtrl.text = '';
-            Navigator.of(context).pushNamed('/admin');
-          },
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: AnimatedContainer(
+            duration: const Duration(seconds: 4),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: _blueGradients[_currentGradient],
+              ),
+            ),
+            onEnd: () {
+              if (!mounted) return;
+              setState(() {
+                _currentGradient =
+                    (_currentGradient + 1) % _blueGradients.length;
+              });
+            },
+          ),
+        ),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.person),
+                onPressed: () async {
+                  _codeCtrl.text = '';
+                  Navigator.of(context).pushNamed('/admin');
+                },
+              ),
+            ],
+          ),
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.of(context).size.width * 0.3,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Enter your registration code to start the quiz',
+                    style: TextStyle(fontSize: 36, color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+                  TextField(
+                    controller: _codeCtrl,
+                    style: TextStyle(color: Colors.grey[900]),
+                    cursorColor: Colors.grey[900],
+                    decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 20,
+                      ),
+                      textStyle: const TextStyle(fontSize: 24),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _checking ? null : _submit,
+                    child: _checking
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Start'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text('Enter your registration code to start the quiz'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _codeCtrl,
-              decoration: const InputDecoration(labelText: 'Code'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _checking ? null : _submit,
-              child: _checking
-                  ? const CircularProgressIndicator()
-                  : const Text('Start'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

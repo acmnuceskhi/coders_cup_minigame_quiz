@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Coders Cup Quiz',
       theme: ThemeData(
-        colorScheme: ColorScheme.dark(primary: Colors.red[700]!),
+        colorScheme: ColorScheme.dark(primary: Colors.blue[400]!),
         useMaterial3: true,
       ),
       routes: {
