@@ -83,7 +83,7 @@ class _QuizPageState extends State<QuizPage>
       // guard division by zero with a tiny epsilon
       final eps = 0.001;
       final safeTime = (timeTakenSeconds <= 0) ? eps : timeTakenSeconds;
-      final finalScore = correct * 10 + (1.0 / safeTime);
+      final finalScore = correct * 10 + (10.0 / safeTime);
 
       final ref = FirebaseFirestore.instance
           .collection('games')
