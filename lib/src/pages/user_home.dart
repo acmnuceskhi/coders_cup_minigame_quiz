@@ -1,8 +1,6 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'quiz_page.dart';
+import 'category_selection_page.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -14,14 +12,30 @@ class UserHome extends StatefulWidget {
 class _UserHomeState extends State<UserHome> {
   final _codeCtrl = TextEditingController();
   bool _checking = false;
-  // Animated blue gradients
-  final List<List<Color>> _blueGradients = [
-    [Color(0xFF0D47A1), Color(0xFF1976D2)], // deep -> mid
-    [Color(0xFF1565C0), Color(0xFF64B5F6)], // mid -> light
-    [Color(0xFF0B3D91), Color(0xFF42A5F5)], // darker -> light
-    [Color(0xFF1E3A8A), Color(0xFF60A5FA)],
-  ];
   int _currentGradient = 0;
+  
+  // Generate gradient variations from primary color
+  List<List<Color>> _getGradients(Color primaryColor) {
+    final hsl = HSLColor.fromColor(primaryColor);
+    return [
+      [
+        hsl.withLightness(0.25).toColor(),
+        hsl.withLightness(0.35).toColor(),
+      ],
+      [
+        hsl.withLightness(0.30).toColor(),
+        hsl.withLightness(0.50).toColor(),
+      ],
+      [
+        hsl.withLightness(0.20).toColor(),
+        hsl.withLightness(0.45).toColor(),
+      ],
+      [
+        hsl.withLightness(0.28).toColor(),
+        hsl.withLightness(0.48).toColor(),
+      ],
+    ];
+  }
 
   @override
   void dispose() {
@@ -36,7 +50,7 @@ class _UserHomeState extends State<UserHome> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        _currentGradient = (_currentGradient + 1) % _blueGradients.length;
+        _currentGradient = (_currentGradient + 1) % 4;
       });
     });
   }
@@ -95,39 +109,15 @@ class _UserHomeState extends State<UserHome> {
         }
         return;
       }
-      // Load 10 random questions
-      final qSnap = await FirebaseFirestore.instance
-          .collection('quiz')
-          .doc('meta')
-          .collection('questions')
-          .get();
-      final all = qSnap.docs;
-      if (all.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No questions available')),
-          );
-        }
-        return;
-      }
-      final rand = Random();
-      final chosen = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-      final indices = <int>{};
-      while (indices.length < 10 && indices.length < all.length) {
-        indices.add(rand.nextInt(all.length));
-      }
-      for (final i in indices) {
-        chosen.add(all[i]);
-      }
 
-      // navigate to quiz page with chosen questions
+      // Navigate to category selection page
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => QuizPage(
+          builder: (_) => CategorySelectionPage(
+            code: code,
             gameId: gameId!,
             responseId: responseId!,
-            questions: chosen,
           ),
         ),
       );
@@ -142,6 +132,9 @@ class _UserHomeState extends State<UserHome> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final gradients = _getGradients(primaryColor);
+    
     return Stack(
       children: [
         Positioned.fill(
@@ -152,14 +145,14 @@ class _UserHomeState extends State<UserHome> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: _blueGradients[_currentGradient],
+                colors: gradients[_currentGradient],
               ),
             ),
             onEnd: () {
               if (!mounted) return;
               setState(() {
                 _currentGradient =
-                    (_currentGradient + 1) % _blueGradients.length;
+                    (_currentGradient + 1) % gradients.length;
               });
             },
           ),

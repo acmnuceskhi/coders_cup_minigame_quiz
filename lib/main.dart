@@ -20,7 +20,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Coders Cup Quiz',
       theme: ThemeData(
-        colorScheme: ColorScheme.dark(primary: Colors.blue[400]!),
+        colorScheme: ColorScheme.dark(
+          primary: const Color.fromARGB(255, 186, 30, 30),
+        ),
         useMaterial3: true,
       ),
       routes: {'/': (_) => const UserHome(), '/admin': (_) => const AuthGate()},

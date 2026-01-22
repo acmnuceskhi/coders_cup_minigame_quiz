@@ -1,21 +1,25 @@
 import 'dart:async';
+import 'dart:math';
 
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 // removed unused imports
 
 class QuizPage extends StatefulWidget {
+  final String code;
   final String gameId;
   final String responseId;
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> questions;
+  final String categoryId;
+  final String categoryName;
 
   const QuizPage({
     super.key,
+    required this.code,
     required this.gameId,
     required this.responseId,
-    required this.questions,
+    required this.categoryId,
+    required this.categoryName,
   });
 
   @override
@@ -35,22 +39,17 @@ class _QuizPageState extends State<QuizPage>
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
 
+  // Questions loaded from Firestore
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _questions = [];
+  bool _loadingQuestions = true;
+
   // scoring weights / settings
   // scoring constants removed; using provided formula instead
-
-  void _select(int choice) {
-    setState(() {
-      _answers.add(choice);
-      final q = widget.questions[_index].data();
-      if ((q['correctIndex'] ?? 0) == choice) _rawCorrect++;
-      _index++;
-    });
-    if (_index >= widget.questions.length) _submitScore();
-  }
 
   @override
   void initState() {
     super.initState();
+    _loadQuestions();
     _bgController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
@@ -60,11 +59,71 @@ class _QuizPageState extends State<QuizPage>
       end: 1.06,
     ).animate(CurvedAnimation(parent: _bgController, curve: Curves.easeInOut));
     _bgController.repeat(reverse: true);
-    // start timing when quiz starts
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
-      if (mounted) setState(() {});
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      // Load questions from category-specific collection
+      final qSnap = await FirebaseFirestore.instance
+          .collection('quiz')
+          .doc('meta')
+          .collection('questions_${widget.categoryId}')
+          .get();
+
+      final all = qSnap.docs;
+
+      if (all.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No questions available')),
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      // Select random questions (up to 10, or all if less)
+      final rand = Random();
+      final chosen = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+      final indices = <int>{};
+      final numQuestions = all.length < 10 ? all.length : 10;
+
+      while (indices.length < numQuestions) {
+        indices.add(rand.nextInt(all.length));
+      }
+
+      for (final i in indices) {
+        chosen.add(all[i]);
+      }
+
+      setState(() {
+        _questions = chosen;
+        _loadingQuestions = false;
+      });
+
+      // Start timing after questions are loaded
+      _stopwatch.start();
+      _timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+        if (mounted) setState(() {});
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load questions: $e')));
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  void _select(int choice) {
+    setState(() {
+      _answers.add(choice);
+      final q = _questions[_index].data();
+      if ((q['correctIndex'] ?? 0) == choice) _rawCorrect++;
+      _index++;
     });
+    if (_index >= _questions.length) _submitScore();
   }
 
   Future<void> _submitScore() async {
@@ -75,7 +134,7 @@ class _QuizPageState extends State<QuizPage>
       _timer?.cancel();
 
       final timeTakenSeconds = _stopwatch.elapsedMilliseconds / 1000.0;
-      final total = widget.questions.length;
+      final total = _questions.length;
       final correct = _rawCorrect;
       final accuracy = total > 0 ? (correct / total) : 0.0;
 
@@ -96,6 +155,8 @@ class _QuizPageState extends State<QuizPage>
         'timeTakenSeconds': timeTakenSeconds,
         'correctRate': accuracy,
         'rawCorrect': correct,
+        'category': widget.categoryId,
+        'categoryName': widget.categoryName,
       });
 
       if (!mounted) return;
@@ -137,17 +198,24 @@ class _QuizPageState extends State<QuizPage>
 
   @override
   Widget build(BuildContext context) {
-    // Defensive: ensure response hasn't been scored while user navigated here.
-    // If so, inform user and pop.
-    // Note: this check is synchronous because questions were loaded earlier, but
-    // we do a quick fetch to be safe.
-    // (We avoid calling async code in build; instead we check a FutureBuilder below.)
-    if (_index >= widget.questions.length) {
+    // Show loading state while questions are being loaded
+    if (_loadingQuestions) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.categoryName),
+          backgroundColor: Colors.deepPurple,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Defensive: ensure we have questions loaded
+    if (_questions.isEmpty || _index >= _questions.length) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // proceed to render the quiz UI with a dimmed background image
-    final q = widget.questions[_index].data();
+    final q = _questions[_index].data();
     final options = List<String>.from(q['options'] ?? []);
 
     String _formatElapsed() {
@@ -222,7 +290,7 @@ class _QuizPageState extends State<QuizPage>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      'Question ${_index + 1}/${widget.questions.length}',
+                      'Question ${_index + 1}/${_questions.length}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: MediaQuery.of(context).size.height * 0.05,
