@@ -42,6 +42,7 @@ class _QuizPageState extends State<QuizPage>
   // Questions loaded from Firestore
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _questions = [];
   bool _loadingQuestions = true;
+  String _userName = '';
 
   // scoring weights / settings
   // scoring constants removed; using provided formula instead
@@ -49,6 +50,7 @@ class _QuizPageState extends State<QuizPage>
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     _loadQuestions();
     _bgController = AnimationController(
       vsync: this,
@@ -59,6 +61,29 @@ class _QuizPageState extends State<QuizPage>
       end: 1.06,
     ).animate(CurvedAnimation(parent: _bgController, curve: Curves.easeInOut));
     _bgController.repeat(reverse: true);
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final responseDoc = await FirebaseFirestore.instance
+          .collection('games')
+          .doc(widget.gameId)
+          .collection('responses')
+          .doc(widget.responseId)
+          .get();
+
+      if (responseDoc.exists) {
+        final data = responseDoc.data();
+        setState(() {
+          _userName = data?['userName'] ?? widget.code;
+        });
+      }
+    } catch (e) {
+      // If error, fallback to code
+      setState(() {
+        _userName = widget.code;
+      });
+    }
   }
 
   Future<void> _loadQuestions() async {
@@ -238,7 +263,7 @@ class _QuizPageState extends State<QuizPage>
                 return AlertDialog(
                   title: const Text('Quit quiz'),
                   content: const Text(
-                    'Are you sure you want to quist? Your progress will be lost.',
+                    'Are you sure you want to quit? Your progress will be lost.',
                   ),
                   actions: [
                     TextButton(
@@ -260,7 +285,10 @@ class _QuizPageState extends State<QuizPage>
             );
           },
         ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
+      extendBodyBehindAppBar: true,
       body: Stack(
         children: [
           // background image (network) with a subtle dark overlay to dim it
@@ -276,104 +304,177 @@ class _QuizPageState extends State<QuizPage>
             ),
           ),
           // quiz content
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: MediaQuery.of(context).size.width * 0.2,
-              vertical: 30,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Question ${_index + 1}/${_questions.length}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: MediaQuery.of(context).size.height * 0.05,
-                      ),
-                      textAlign: TextAlign.center,
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isShortScreen = constraints.maxHeight < 700;
+                final screenWidth = constraints.maxWidth;
+                // Use more screen width - less padding on larger screens
+                final horizontalPadding = screenWidth > 1200 
+                    ? screenWidth * 0.15 
+                    : (screenWidth > 800 ? screenWidth * 0.08 : screenWidth * 0.05);
+                
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                    // visible timer
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.45),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _formatElapsed(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.of(context).size.width * 0.1,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.7),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.4,
-                          width: MediaQuery.of(context).size.width * 0.1,
-                          child: SingleChildScrollView(
-                            child: Text(
-                              q['question'] ?? '',
-                              style: TextStyle(fontSize: 20),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 60),
-                ...List.generate(
-                  options.length,
-                  (i) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6.0),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: MediaQuery.of(context).size.width * 0.1,
+                        horizontal: horizontalPadding,
+                        vertical: isShortScreen ? 12 : 20,
                       ),
-                      child: ElevatedButton(
-                        onPressed: () => _select(i),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 20,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // User name display
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person_rounded,
+                                  size: 20,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    _userName.isNotEmpty ? _userName : widget.code,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          textStyle: const TextStyle(fontSize: 24),
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: _renderPossibleMath(options[i], 20),
+                          SizedBox(height: isShortScreen ? 12 : 24),
+                          // Question counter and timer
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Question ${_index + 1}/${_questions.length}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isShortScreen ? 22 : 28,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              // visible timer
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  _formatElapsed(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isShortScreen ? 16 : 24),
+                          // Question box
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxHeight: isShortScreen 
+                                    ? constraints.maxHeight * 0.25
+                                    : constraints.maxHeight * 0.32,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.75),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.25),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: SingleChildScrollView(
+                                padding: EdgeInsets.all(isShortScreen ? 20 : 28),
+                                child: _renderPossibleMath(
+                                  q['question'] ?? '',
+                                  isShortScreen ? 20 : 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isShortScreen ? 20 : 36),
+                          // Options
+                          ...List.generate(
+                            options.length,
+                            (i) => Padding(
+                              padding: EdgeInsets.only(
+                                bottom: isShortScreen ? 10.0 : 14.0,
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () => _select(i),
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: isShortScreen ? 16 : 22,
+                                  ),
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 4,
+                                ),
+                                child: _renderPossibleMath(
+                                  options[i],
+                                  isShortScreen ? 16 : 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_submitting) ...[
+                            const SizedBox(height: 20),
+                            const Center(
+                              child: CircularProgressIndicator(color: Colors.white),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
-                ),
-                // const Spacer(),
-                if (_submitting)
-                  const Center(child: CircularProgressIndicator()),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -391,7 +492,11 @@ class _QuizPageState extends State<QuizPage>
     if (!hasMath) {
       return Text(
         text,
-        style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
         textAlign: TextAlign.center,
       );
     }
@@ -404,7 +509,11 @@ class _QuizPageState extends State<QuizPage>
 
     return Math.tex(
       latex,
-      textStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+      textStyle: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
       mathStyle: MathStyle.text,
     );
   }

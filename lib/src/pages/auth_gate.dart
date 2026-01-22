@@ -1,49 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'admin_questions_page.dart';
 
-/// AuthGate that forces a fresh login every time the admin page is opened.
-/// It signs out any existing Firebase session on creation and then shows the
-/// login UI. This ensures admins must re-enter credentials each time.
-class AuthGate extends StatefulWidget {
+/// AuthGate that shows login page if not authenticated.
+/// Keeps user logged in after successful authentication.
+class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  bool _signingOut = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // Ensure any existing auth session is cleared when opening the admin UI.
-    // We don't await here synchronously; update state when complete.
-    FirebaseAuth.instance.signOut().whenComplete(() {
-      if (mounted) setState(() => _signingOut = false);
-    }).catchError((_) {
-      if (mounted) setState(() => _signingOut = false);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_signingOut) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        }
-        final user = snapshot.data;
-        if (user == null) return const LoginPage();
-        return const AdminQuestionsPage();
-      },
-    );
+    return const LoginPage();
   }
 }
 
@@ -69,10 +34,15 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _submit() async {
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(email: _email.text.trim(), password: _pass.text);
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _email.text.trim(),
+        password: _pass.text,
+      );
     } on FirebaseAuthException catch (e) {
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? e.code)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? e.code)));
     } finally {
       setState(() => _loading = false);
     }
@@ -83,23 +53,39 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Sign In')),
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.3),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width * 0.3,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
+            TextField(
+              controller: _email,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
             const SizedBox(height: 20),
-            TextField(controller: _pass, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
+            TextField(
+              controller: _pass,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
             const SizedBox(height: 60),
             ElevatedButton(
-                 style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 20,
+                ),
                 textStyle: const TextStyle(fontSize: 24),
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
               ),
-           
-              onPressed: _loading ? null : _submit, child: _loading ? const CircularProgressIndicator() : const Text('Sign in')),
+
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const CircularProgressIndicator()
+                  : const Text('Sign in'),
+            ),
           ],
         ),
       ),

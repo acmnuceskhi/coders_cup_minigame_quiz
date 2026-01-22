@@ -13,27 +13,15 @@ class _UserHomeState extends State<UserHome> {
   final _codeCtrl = TextEditingController();
   bool _checking = false;
   int _currentGradient = 0;
-  
+
   // Generate gradient variations from primary color
   List<List<Color>> _getGradients(Color primaryColor) {
     final hsl = HSLColor.fromColor(primaryColor);
     return [
-      [
-        hsl.withLightness(0.25).toColor(),
-        hsl.withLightness(0.35).toColor(),
-      ],
-      [
-        hsl.withLightness(0.30).toColor(),
-        hsl.withLightness(0.50).toColor(),
-      ],
-      [
-        hsl.withLightness(0.20).toColor(),
-        hsl.withLightness(0.45).toColor(),
-      ],
-      [
-        hsl.withLightness(0.28).toColor(),
-        hsl.withLightness(0.48).toColor(),
-      ],
+      [hsl.withLightness(0.25).toColor(), hsl.withLightness(0.35).toColor()],
+      [hsl.withLightness(0.30).toColor(), hsl.withLightness(0.50).toColor()],
+      [hsl.withLightness(0.20).toColor(), hsl.withLightness(0.45).toColor()],
+      [hsl.withLightness(0.28).toColor(), hsl.withLightness(0.48).toColor()],
     ];
   }
 
@@ -134,7 +122,7 @@ class _UserHomeState extends State<UserHome> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final gradients = _getGradients(primaryColor);
-    
+
     return Stack(
       children: [
         Positioned.fill(
@@ -151,8 +139,7 @@ class _UserHomeState extends State<UserHome> {
             onEnd: () {
               if (!mounted) return;
               setState(() {
-                _currentGradient =
-                    (_currentGradient + 1) % gradients.length;
+                _currentGradient = (_currentGradient + 1) % gradients.length;
               });
             },
           ),
