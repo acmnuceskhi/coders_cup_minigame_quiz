@@ -489,6 +489,100 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     }
   }
 
+  Future<void> _editCategory(String id, String currentName, String currentDesc) async {
+    final nameController = TextEditingController(text: currentName);
+    final descController = TextEditingController(text: currentDesc);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Category'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Display Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ID: $id (cannot be changed)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) {
+      nameController.dispose();
+      descController.dispose();
+      return;
+    }
+
+    final newName = nameController.text.trim();
+    final newDesc = descController.text.trim();
+
+    nameController.dispose();
+    descController.dispose();
+
+    if (newName.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Name cannot be empty')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('quiz')
+          .doc('meta')
+          .collection('categories')
+          .doc(id)
+          .update({'name': newName, 'description': newDesc});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Category updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _deleteCategory(String id, String name) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -630,10 +724,23 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                             Text(data['description']),
                         ],
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () =>
-                            _deleteCategory(d.id, data['name'] ?? ''),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _editCategory(
+                              d.id,
+                              data['name'] ?? '',
+                              data['description'] ?? '',
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () =>
+                                _deleteCategory(d.id, data['name'] ?? ''),
+                          ),
+                        ],
                       ),
                     );
                   },

@@ -452,13 +452,17 @@ class _QuizPageState extends State<QuizPage>
                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(
+                                      color: Colors.white.withOpacity(0.2),
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  elevation: 4,
+                                  elevation: 6,
                                 ),
                                 child: _renderPossibleMath(
                                   options[i],
-                                  isShortScreen ? 16 : 18,
+                                  isShortScreen ? 18 : 22,
                                 ),
                               ),
                             ),
